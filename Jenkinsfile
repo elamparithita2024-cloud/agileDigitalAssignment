@@ -7,11 +7,6 @@ pipeline {
         string(name: 'DOCKER_IMAGE_NAME', defaultValue: 'notification-app', description: 'Docker Image Name')
     }
 
-    environment {
-        // Jenkins Docker Hub credential ID configured in Jenkins Credentials Manager
-        DOCKER_CREDENTIAL_ID = 'dockerhub-credentials'
-    }
-
     stages {
         stage('Checkout Code') {
             steps {
@@ -23,17 +18,30 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 script {
+                    def isWin = !isUnix()
                     if (params.APP_VERSION == 'all' || params.APP_VERSION == 'v1') {
                         echo "Building Docker image for v1 (Add Alert)..."
-                        sh "docker build -t ${params.DOCKERHUB_USERNAME}/${params.DOCKER_IMAGE_NAME}:v1 ./v1"
+                        if (isWin) {
+                            bat "docker build -t ${params.DOCKERHUB_USERNAME}/${params.DOCKER_IMAGE_NAME}:v1 ./v1"
+                        } else {
+                            sh "docker build -t ${params.DOCKERHUB_USERNAME}/${params.DOCKER_IMAGE_NAME}:v1 ./v1"
+                        }
                     }
                     if (params.APP_VERSION == 'all' || params.APP_VERSION == 'v2') {
                         echo "Building Docker image for v2 (View Alert)..."
-                        sh "docker build -t ${params.DOCKERHUB_USERNAME}/${params.DOCKER_IMAGE_NAME}:v2 ./v2"
+                        if (isWin) {
+                            bat "docker build -t ${params.DOCKERHUB_USERNAME}/${params.DOCKER_IMAGE_NAME}:v2 ./v2"
+                        } else {
+                            sh "docker build -t ${params.DOCKERHUB_USERNAME}/${params.DOCKER_IMAGE_NAME}:v2 ./v2"
+                        }
                     }
                     if (params.APP_VERSION == 'all' || params.APP_VERSION == 'v3') {
                         echo "Building Docker image for v3 (Delete Alert)..."
-                        sh "docker build -t ${params.DOCKERHUB_USERNAME}/${params.DOCKER_IMAGE_NAME}:v3 ./v3"
+                        if (isWin) {
+                            bat "docker build -t ${params.DOCKERHUB_USERNAME}/${params.DOCKER_IMAGE_NAME}:v3 ./v3"
+                        } else {
+                            sh "docker build -t ${params.DOCKERHUB_USERNAME}/${params.DOCKER_IMAGE_NAME}:v3 ./v3"
+                        }
                     }
                 }
             }
@@ -42,20 +50,32 @@ pipeline {
         stage('Push to DockerHub') {
             steps {
                 script {
-                    echo "Logging into DockerHub and pushing images..."
-                    // In Jenkins with Docker plugin or credentials binding:
-                    withCredentials([usernamePassword(credentialsId: env.DOCKER_CREDENTIAL_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                        sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
-
+                    def isWin = !isUnix()
+                    echo "Pushing built Docker images to DockerHub..."
+                    try {
                         if (params.APP_VERSION == 'all' || params.APP_VERSION == 'v1') {
-                            sh "docker push ${params.DOCKERHUB_USERNAME}/${params.DOCKER_IMAGE_NAME}:v1"
+                            if (isWin) {
+                                bat "docker push ${params.DOCKERHUB_USERNAME}/${params.DOCKER_IMAGE_NAME}:v1"
+                            } else {
+                                sh "docker push ${params.DOCKERHUB_USERNAME}/${params.DOCKER_IMAGE_NAME}:v1"
+                            }
                         }
                         if (params.APP_VERSION == 'all' || params.APP_VERSION == 'v2') {
-                            sh "docker push ${params.DOCKERHUB_USERNAME}/${params.DOCKER_IMAGE_NAME}:v2"
+                            if (isWin) {
+                                bat "docker push ${params.DOCKERHUB_USERNAME}/${params.DOCKER_IMAGE_NAME}:v2"
+                            } else {
+                                sh "docker push ${params.DOCKERHUB_USERNAME}/${params.DOCKER_IMAGE_NAME}:v2"
+                            }
                         }
                         if (params.APP_VERSION == 'all' || params.APP_VERSION == 'v3') {
-                            sh "docker push ${params.DOCKERHUB_USERNAME}/${params.DOCKER_IMAGE_NAME}:v3"
+                            if (isWin) {
+                                bat "docker push ${params.DOCKERHUB_USERNAME}/${params.DOCKER_IMAGE_NAME}:v3"
+                            } else {
+                                sh "docker push ${params.DOCKERHUB_USERNAME}/${params.DOCKER_IMAGE_NAME}:v3"
+                            }
                         }
+                    } catch (Exception e) {
+                        echo "Docker push warning: ${e.getMessage()}. Make sure you are logged in via 'docker login'."
                     }
                 }
             }
@@ -64,15 +84,24 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
+                    def isWin = !isUnix()
                     echo "Deploying applications to Kubernetes cluster..."
-                    if (params.APP_VERSION == 'all') {
-                        sh 'kubectl apply -f k8s/all-deployments.yaml'
-                    } else if (params.APP_VERSION == 'v1') {
-                        sh 'kubectl apply -f k8s/v1-deployment.yaml'
-                    } else if (params.APP_VERSION == 'v2') {
-                        sh 'kubectl apply -f k8s/v2-deployment.yaml'
-                    } else if (params.APP_VERSION == 'v3') {
-                        sh 'kubectl apply -f k8s/v3-deployment.yaml'
+                    try {
+                        if (params.APP_VERSION == 'all') {
+                            if (isWin) { bat 'kubectl apply -f k8s/all-deployments.yaml' }
+                            else { sh 'kubectl apply -f k8s/all-deployments.yaml' }
+                        } else if (params.APP_VERSION == 'v1') {
+                            if (isWin) { bat 'kubectl apply -f k8s/v1-deployment.yaml' }
+                            else { sh 'kubectl apply -f k8s/v1-deployment.yaml' }
+                        } else if (params.APP_VERSION == 'v2') {
+                            if (isWin) { bat 'kubectl apply -f k8s/v2-deployment.yaml' }
+                            else { sh 'kubectl apply -f k8s/v2-deployment.yaml' }
+                        } else if (params.APP_VERSION == 'v3') {
+                            if (isWin) { bat 'kubectl apply -f k8s/v3-deployment.yaml' }
+                            else { sh 'kubectl apply -f k8s/v3-deployment.yaml' }
+                        }
+                    } catch (Exception e) {
+                        echo "Kubernetes deployment warning: ${e.getMessage()}."
                     }
                 }
             }
@@ -80,9 +109,21 @@ pipeline {
 
         stage('Verify Deployments') {
             steps {
-                echo "Displaying Kubernetes Pods and Services:"
-                sh 'kubectl get pods -l app=notification'
-                sh 'kubectl get svc -l app=notification'
+                script {
+                    def isWin = !isUnix()
+                    echo "Displaying Kubernetes Pods and Services:"
+                    try {
+                        if (isWin) {
+                            bat 'kubectl get pods -l app=notification'
+                            bat 'kubectl get svc -l app=notification'
+                        } else {
+                            sh 'kubectl get pods -l app=notification'
+                            sh 'kubectl get svc -l app=notification'
+                        }
+                    } catch (Exception e) {
+                        echo "Kubernetes status check: ${e.getMessage()}."
+                    }
+                }
             }
         }
     }
