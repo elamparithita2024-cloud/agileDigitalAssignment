@@ -26,7 +26,7 @@ spec:
     spec:
       containers:
       - name: notification-app-v1
-        image: 24mis0384/notification-app:v1
+        image: elamparithi2024/notification-app:v1
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5000
@@ -73,7 +73,7 @@ spec:
     spec:
       containers:
       - name: notification-app-v2
-        image: 24mis0384/notification-app:v2
+        image: elamparithi2024/notification-app:v2
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5000
@@ -120,7 +120,7 @@ spec:
     spec:
       containers:
       - name: notification-app-v3
-        image: 24mis0384/notification-app:v3
+        image: elamparithi2024/notification-app:v3
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5000

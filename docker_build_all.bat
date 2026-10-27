@@ -1,7 +1,7 @@
 @echo off
-set DOCKER_USER=24mis0384
+set DOCKER_USER=elamparithi2024
 echo ==============================================
-echo Building Docker Images for Roll No: %DOCKER_USER%
+echo Building Docker Images for User: %DOCKER_USER%
 echo Project: Notification (v1, v2, v3)
 echo ==============================================
 
